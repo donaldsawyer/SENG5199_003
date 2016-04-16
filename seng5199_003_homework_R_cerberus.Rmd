@@ -1,0 +1,263 @@
+---
+title: "seng5199_003_homework_R_cerberus"
+author: "Cerberus (Collin Jasnoch, Donald Sawyer, Ben Wenner)"
+date: "April 15, 2016"
+output: html_document
+---
+
+#Excercise 1: Loading and cleaning data (5 points)
+In this exercise, you'll load the data and drop a few weird columns
+
+1. load the food facts dataset FoodFacts.csv into a pandas dataframe
+2. What are columns 0, 3, 5, 27 and 36?
+3. Remove columns 3, 5
+
+```{r error=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+setwd('~/git/SENG5199_003')
+```
+
+## Solution 1.1
+*Load the food facts dataset FoodFacts.csv into a pandas dataframe.*
+```{r}
+foodFacts <- read.csv('FoodFacts.csv', stringsAsFactors = FALSE)
+backup.foodFacts <- foodFacts
+#foodFacts <- backup.foodFacts
+
+foodFacts <- foodFacts %>% select(-c(4, 6))
+names(foodFacts)[1:8]
+```
+
+## Solution 1.2
+*What are columns 0, 3, 5, 27 and 36?*
+```{r}
+names(foodFacts)[c(0, 3, 5, 27, 36)+1]
+```
+
+## Solution 1.3
+*Remove columns 3, 5*
+```{r}
+names(foodFacts)[1:8]
+foddFacts <- foodFacts %>% select(-4, -6)
+names(foodFacts)[1:8]
+```
+
+Exercise 2: Exploring the Data (20 points)
+------------------------------
+
+Answer the following questions using some pandas built in operations (slicing, sorting, and basic plotting)
+
+1. What percentage of items have a nutrition_score for the uk?
+2. What's the most caffeinated food?
+3. What items (top 5) have a lot of arachidonic acid (arachidonic_acid_100g)? 
+4. Based on the data, what would you guess arachidonic acid is used for? (check the categories)
+5. Make a box plot of the nutritional score for the uk (nutrition_score_uk_100g).
+6. Do you think there are more healthy or unhealthy foods in this data set? Is the data skewed? Explain.
+
+## Solution 2.1
+*What percentage of items have a nutrition_score for the uk?*
+
+```{r echo=FALSE}
+foodFacts <- backup.foodFacts
+```
+```{r}
+round(dim(foodFacts[!is.na(foodFacts$nutrition_score_uk_100g),])[1] / dim(foodFacts)[1] * 100, 2)
+```
+
+## Solution 2.2
+*What's the most caffeinated food?*
+```{r}
+arrange(foodFacts, desc(caffeine_100g))[1, "product_name"]
+```
+## Solution 2.3
+*What items (top 5) have a lot of arachidonic acid (arachidonic_acid_100g)?*
+```{r}
+arrange(foodFacts, desc(arachidonic_acid_100g))[5, c("product_name", "arachidonic_acid_100g", "main_category_en")]
+```
+
+## Solution 2.4
+*Based on the data, what would you guess arachidonic acid is used for? (check the categories)*
+
+**Based on the main_category_en field, these are all in baby foods.  This would indicate to me that it is a supplement that assists in infant development or digestion.**
+
+## Solution 2.5
+*Make a box plot of the nutritional score for the uk (nutrition_score_uk_100g).*
+```{r}
+boxplot(foodFacts$nutrition_score_uk_100g, ylab="nutrition score (uk)", main="UK Nutrition Score")
+```
+
+## Solution 2.6
+*Do you think there are more healthy or unhealthy foods in this data set? Is the data skewed? Explain.*
+
+**First, a higher score means the food is more unhealthy. 
+In this data set, the red line (2nd quartile/median) is on the healthy side, meaning there are more foods that are healthy.  Of note, the box plot is quite tall which indicates there is a wide range of values.**
+
+Exercise 3: Who's Creating the Data? (30 points)
+------------------------------------
+
+Explore the "creator" column
+
+Answer the following questions using basic pandas operations (sorting, groupby, aggregation):
+
+1. How many unique creators are there in the data?
+2. What percentage of items are created by open food facts contributers?
+3. Find the top 10 creators
+4. Create a bar plot of the number of contributions by each creator for the top 10 creators
+
+## Solution 3.1
+*How many unique creators are there in the data?*
+```{r}
+length(levels(as.factor(foodFacts$creator)))
+```
+
+## Solution 3.2
+*What percentage of items are created by open food facts contributers?*
+```{r}
+round(dim(foodFacts[foodFacts$creator == "openfoodfacts-contributors",])[1] / dim(foodFacts)[1] * 100, 2)
+```
+
+## Solution 3.3
+*Find the top 10 creators*
+```{r}
+(group_by(foodFacts, creator) %>% summarise(number=n()) %>% arrange(desc(number)))[1:10,]
+```
+
+## Solution 3.4
+*Create a bar plot of the number of contributions by each creator for the top 10 creators*
+```{r}
+top10creators <- (group_by(foodFacts, creator) %>% summarise(number=n()) %>% arrange(desc(number)))[1:10,]
+par(las=2)
+par(mar=c(12,4,4,2)) # increase y-axis margin.
+barplot(height=top10creators$number, names.arg = top10creators$creator)
+```
+
+Exercise 4: Modeling (30 points)
+--------------------
+
+Here we'll poke at the question "Is there good fat?"
+
+1. Create a dataframe with only two columns "fat_100g" and "nutrition_score_uk_100g" (drop nulls)
+2. Create a scatter plot with x being "fat_100g" and y being "nutrition_score_uk_100g"
+3. Split the data into two random sets test and train (70% train, 30% test)
+4. Fit a linear regression on the train dataset using x as "fat_100g" and y as "nutrition_score_uk_100g"
+5. Predict nutrition score using the test set
+6. Plot the scatter plot and line together
+7. Do the results suprise you? What types of items a lot of fat? Do they have high nutrition scores?
+
+Hint: Use code from in class exercise, just be careful not to accidentally swap x and y
+
+## Solution 4.1
+*Create a dataframe with only two columns "fat_100g" and "nutrition_score_uk_100g" (drop nulls)*
+```{r}
+fatAndNutrition <- foodFacts[!is.na(foodFacts$fat_100g) & !is.na(foodFacts$nutrition_score_uk_100g), c("fat_100g", "nutrition_score_uk_100g") ]
+head(fatAndNutrition)
+```
+
+## Solution 4.2
+*Create a scatter plot with x being "fat_100g" and y being "nutrition_score_uk_100g"*
+fatAndNutrition <- foodFacts[!is.na(foodFacts$fat_100g) & !is.na(foodFacts$nutrition_score_uk_100g), c("fat_100g", "nutrition_score_uk_100g") ]
+plot(fatAndNutrition$fat_100g, fatAndNutrition$nutrition_score_uk_100g, xlab="Fat Content / 100g", ylab="UK Nutrition Score / 100g")
+
+## Solution 4.3
+*Split the data into two random sets test and train (70% train, 30% test)*
+
+```{r}
+bound <- floor((nrow(fatAndNutrition))*.7)         #define % of training and test set
+sample.fan <- fatAndNutrition[sample(nrow(fatAndNutrition)), ]           #sample rows 
+fan.train <- sample.fan[1:bound, ]              #get training set
+fan.test <- sample.fan[(bound+1):nrow(sample.fan), ]    #get test set
+```
+
+## Solution 4.4
+*Fit a linear regression on the train dataset using x as "fat_100g" and y as "nutrition_score_uk_100g"*
+```{r}
+lmMod <- lm(nutrition_score_uk_100g ~ fat_100g, data=fan.train)
+```
+
+## Solution 4.5
+*Predict nutrition score using the test set*
+```{r}
+score.prediction <- predict(lmMod, fan.test)
+```
+
+## Solution 4.6
+*Plot the scatter plot and line together*
+```{r}
+par(mfrow=c(1,1))
+plot(fatAndNutrition$fat_100g, fatAndNutrition$nutrition_score_uk_100g, xlab="Fat Content / 100g", ylab="UK Nutrition Score / 100g")
+lines(fan.test$fat_100g, score.prediction, col="red")
+```
+
+## Solution 4.7
+*Do the results suprise you? What types of items a lot of fat? Do they have high nutrition scores?*
+
+**The results aren't particularly surprising, but one thing that is interesting is that the highest fat content items are mostly olive oils. Being that they are plant-based items, the nutrition scores aren't nearly as high as the most unhealthy foods in the list.**
+
+**As the fat content goes up, so does the nutrition score, and high nutrition scores are more unhealthy.  A further dive into the dataset could include the relationships between the different types of fat types and various other nutritional variables like trans-fat_100g, omega-9-fat_100g, and omega-6-fat_100g.**
+
+**Based on the data shown in the 2nd table below, mostly sugary and salty snacks appear in the top of the most unhealthy categories (but not necessarily the most fat content).**
+```{r}
+arrange(foodFacts, desc(fat_100g))[1:9, c("product_name","main_category", "nutrition_score_uk_100g")]
+```
+```{r}
+arrange(foodFacts, desc(nutrition_score_uk_100g))[1:9, c("product_name","main_category", "nutrition_score_uk_100g")]
+```
+
+
+Exercise 5: Machine Learning Theory (15 points)
+-----------------------------------
+
+A lot of times simply applying the correct model makes more of a difference than clean data. This exercise shows off your knowledge of the theory behind different machine learning concepts.
+
+1. If you were going to create your own nutritional rating, based off of (the very incomplete) UK and French rankings which class of machine learning model would you choose? Why? Which scikit learn model would you choose? Why? Assume your rating would be between 0 and 100.
+
+2. If you wanted to group foods into 10 categories based on their nutritional facts and keywords in their product names, which type of machine learning model would you use? Why? Which scikit learn model would you choose? Why?
+
+3. If you wanted to try to detect outliers (malicious users, data corruption, etc) what type of model could you use? Why? Is there anything in scikit learn that can handle this task?
+
+## Solution 5.1
+*If you were going to create your own nutritional rating, based off of (the very incomplete) UK and French rankings which class of machine learning model would you choose? Why? Which R model would you choose? Why? Assume your rating would be between 0 and 100.*
+
+### Machine Learning Model
+With a rating prediction being a continuous continuous value between 0 and 100, we'd lean toward using some version of a regression model.  Based on the correlation below, and common sense, the two nutrition scores are highly correlated and may be able to contribute to a 0-100 ranking of our own.  Of note, even though there are missing values, due to the high correlation, it might not even be necessary to remove the NAs from the data with proper training.
+
+Since the result would likely be linear, we'd expect that a **linear regression** would fit the best.  What we don't understand, though, is how you'd possibly train the model unless you came up with a rating using the same set of features in the dataset and then calculated the new ranking from there.
+
+**Plot of FR vs UK Nutrition Scores**
+```{r}
+fr_vs_uk = foodFacts[!is.na(foodFacts$nutrition_score_fr_100g) & !is.na(foodFacts$nutrition_score_uk_100g), c("nutrition_score_fr_100g", "nutrition_score_uk_100g")]
+print(paste0("size of fr_vs_uk: ", nrow(fr_vs_uk)))
+plot(fr_vs_uk$nutrition_score_fr_100g, fr_vs_uk$nutrition_score_uk_100g, xlab="Nutrition Score (fr)", ylab="Nutrition Score (uk)")
+```
+
+**FR vs. UK Correlation**
+```{R}
+cor(fr_vs_uk$nutrition_score_fr_100g, fr_vs_uk$nutrition_score_uk_100g)
+```
+
+### R Model
+Since we're looking to do a simple linear regression, then the ***lm()*** model will work using the ordinary least squares.  There only two features in the data set (fr & uk scores), so it didn't make a lot of sense to try getting more complex with a Lasso or Ridge Regression.
+
+## Solution 5.2
+*If you wanted to group foods into 10 categories based on their nutritional facts and keywords in their product names, which type of machine learning model would you use? Why? Which scikit learn model would you choose? Why?*
+
+### Machine Learning Model
+Grouping the foods into 10 categories is a classification activity.  Using some text based parsing as well as numerical data, we'd prefer to use a Bayesian classifier (Naive Bayes Network).  Based on the large number of nutritional facts and keywords available, a Bayes Network will allow for predictions that account for the features can influence other variables, or have natural relationships.
+
+Another option would be a K-Neighbors classifier would do a reasonable job classifying the data.  The nearest category can be determined using any sort of distance calculation, like Euclidian distance.
+
+### R Model
+For the Naive Bayes model, I'd first take a look at the naiveBayes() model in the e1071 package.
+
+For the K-Neighbors Classifier, use the knn() model in the class package.
+
+## Solution 5.3
+*If you wanted to try to detect outliers (malicious users, data corruption, etc) what type of model could you use? Why? Is there anything in scikit learn that can handle this task?*
+
+### Machine Learning Model
+There are many possible ways to do outlier detection.  A single-class support vector machine would do a fine job of finding outliers.  SVMs are very powerful and accurate for yes/no classifications.
+
+A KNN technique would also be useful if you wanted to look at the densities of various clusters and find if some of the data points were not within the various densities.
+
+### R Model
+The svm() model in the e1071 package can be used and has many variations for the Support Vector Machines.
