@@ -14,6 +14,7 @@ In this exercise, you'll load the data and drop a few weird columns
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
 library(dplyr)
+library(ggplot2)
 setwd('~/git/SENG5199_003')
 ```
 
@@ -84,6 +85,9 @@ arrange(foodFacts, desc(arachidonic_acid_100g))[5, c("product_name", "arachidoni
 *Make a box plot of the nutritional score for the uk (nutrition_score_uk_100g).*
 ```{r}
 boxplot(foodFacts$nutrition_score_uk_100g, ylab="nutrition score (uk)", main="UK Nutrition Score")
+
+foodFacts$dummy <- "value"
+ggplot(foodFacts, aes(x=factor(dummy), y=nutrition_score_uk_100g)) + geom_boxplot(fill = "black", colour = "red")
 ```
 
 ## Solution 2.6
@@ -129,6 +133,13 @@ top10creators <- (group_by(foodFacts, creator) %>% summarise(number=n()) %>% arr
 par(las=2)
 par(mar=c(12,4,4,2)) # increase y-axis margin.
 barplot(height=top10creators$number, names.arg = top10creators$creator)
+
+ggplot(top10creators, aes(x = factor(creator))) + 
+    geom_bar(aes(weight = number, fill = creator)) +
+    theme(axis.text.x = element_text(angle=45, hjust = 1)) +
+    xlab("Creator Username") + 
+    ylab("Number of Records Created") +
+    ggtitle("Top 10 Creators and Count of Created Items")
 ```
 
 Exercise 4: Modeling (30 points)
@@ -155,8 +166,12 @@ head(fatAndNutrition)
 
 ## Solution 4.2
 *Create a scatter plot with x being "fat_100g" and y being "nutrition_score_uk_100g"*
+```{r}
 fatAndNutrition <- foodFacts[!is.na(foodFacts$fat_100g) & !is.na(foodFacts$nutrition_score_uk_100g), c("fat_100g", "nutrition_score_uk_100g") ]
 plot(fatAndNutrition$fat_100g, fatAndNutrition$nutrition_score_uk_100g, xlab="Fat Content / 100g", ylab="UK Nutrition Score / 100g")
+
+ggplot(fatAndNutrition, aes(x = fat_100g, y = nutrition_score_uk_100g)) + geom_point(aes(color=fat_100g, fill=fat_100g), shape=24, )
+```
 
 ## Solution 4.3
 *Split the data into two random sets test and train (70% train, 30% test)*
@@ -186,6 +201,11 @@ score.prediction <- predict(lmMod, fan.test)
 par(mfrow=c(1,1))
 plot(fatAndNutrition$fat_100g, fatAndNutrition$nutrition_score_uk_100g, xlab="Fat Content / 100g", ylab="UK Nutrition Score / 100g")
 lines(fan.test$fat_100g, score.prediction, col="red")
+
+ggplot(fatAndNutrition, aes(x = fat_100g, y = nutrition_score_uk_100g)) + 
+    geom_point(aes(color=fat_100g)) + 
+    scale_color_gradient(low="red", high="red4") +
+    geom_smooth(method = "lm", se=TRUE, color = "chartreuse4", weight=3)
 ```
 
 ## Solution 4.7
